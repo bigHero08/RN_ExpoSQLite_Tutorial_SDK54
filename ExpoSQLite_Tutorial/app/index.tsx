@@ -1,6 +1,7 @@
 import { useSQLiteContext } from "expo-sqlite";
 import { useEffect, useState } from "react";
 import {
+  Alert,
   Button,
   FlatList,
   StyleSheet,
@@ -8,7 +9,14 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { fetchItems, insertItem, type Item } from "./db";
+import ItemRow from "./components/ItemRow";
+import {
+  deleteItem,
+  fetchItems,
+  insertItem,
+  updateItem,
+  type Item,
+} from "./db";
 
 export default function App() {
   /**
@@ -28,6 +36,7 @@ export default function App() {
    */
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   /**
    * Database State
@@ -54,25 +63,22 @@ export default function App() {
   /**
    * Load Items Function
    *
-   * Fetches all items from the database and updates the state.
+   * Fetches all items from the database and updates the local `items` state.
    *
-   * Why async/await?
-   * - Database operations take time (they're asynchronous)
-   * - 'await' pauses execution until the database responds
-   * - This prevents the app from freezing while waiting for data
+   * This function is called when the component first mounts (via useEffect)
+   * and whenever data changes (after an insert, update, or delete operation).
    *
-   * Why try/catch?
-   * - Database operations can fail (device storage full, corrupted data, etc.)
-   * - try/catch prevents crashes by gracefully handling errors
-   * - Always log errors to help with debugging
+   * The fetched data is stored in state so the FlatList automatically re-renders
+   * to reflect the latest information from the database.
+   *
+   * @returns Promise that resolves when items are successfully loaded
    */
   const loadItems = async () => {
     try {
       const value = await fetchItems(db);
       setItems(value);
     } catch (err) {
-      console.log("Failed to fetch items");
-      console.log(err);
+      console.log("Failed to fetch items", err);
     }
   };
 
@@ -111,6 +117,108 @@ export default function App() {
     }
   };
 
+  /**
+   * Save or Update Item Function
+   *
+   * Validates user input, then either inserts a new record or updates
+   * an existing record depending on whether `editingId` is null.
+   *
+   * Validation Steps:
+   * 1. Ensure the name is not empty (after trimming whitespace)
+   * 2. Parse quantity as an integer
+   * 3. Ensure quantity is a valid number (not NaN)
+   *
+   * Workflow:
+   * - If no item is being edited (editingId is null), insert a new item.
+   * - If an item is being edited, update that record in the database.
+   *
+   * After successful operation:
+   * - The list of items is refreshed from the database
+   * - Form fields and editing state are cleared
+   *
+   * @returns Promise that resolves when the save or update completes
+   */
+  const saveOrUpdate = async () => {
+    if (!name.trim()) return;
+    const parsedQuantity = parseInt(quantity, 10);
+    if (Number.isNaN(parsedQuantity)) return;
+
+    try {
+      if (editingId === null) {
+        await insertItem(db, name.trim(), parsedQuantity);
+      } else {
+        await updateItem(db, editingId, name.trim(), parsedQuantity);
+      }
+      await loadItems();
+      setName("");
+      setQuantity("");
+      setEditingId(null);
+    } catch (err) {
+      console.log("Failed to save/update item", err);
+    }
+  };
+
+  /**
+   * Start Edit Function
+   *
+   * Prepares the form for editing an existing item.
+   *
+   * When a user taps the "Edit" button, this function:
+   * - Saves the selected item's `id` in state (editingId)
+   * - Populates the input fields (`name` and `quantity`)
+   *   so the user can modify existing values
+   *
+   * Once editing is complete and the user taps "Update Item",
+   * the `saveOrUpdate` function will handle saving the changes.
+   *
+   * @param item - The item object that the user selected to edit
+   * @returns void
+   */
+  const startEdit = (item: Item) => {
+    setEditingId(item.id);
+    setName(item.name);
+    setQuantity(String(item.quantity));
+  };
+
+  /**
+   * Confirm Delete Function
+   *
+   * Displays a confirmation dialog before deleting an item from the database.
+   *
+   * Workflow:
+   * 1. Shows an alert asking the user to confirm deletion.
+   * 2. If the user confirms, deletes the item using its `id`.
+   * 3. Reloads the item list to reflect the change.
+   * 4. If the deleted item was currently being edited, clears the form.
+   *
+   * This confirmation step helps prevent accidental deletions.
+   *
+   * @param id - The unique identifier of the item to delete
+   * @returns void
+   */
+  const confirmDelete = (id: number) => {
+    Alert.alert("Delete item?", "This cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteItem(db, id);
+            await loadItems();
+            if (editingId === id) {
+              setEditingId(null);
+              setName("");
+              setQuantity("");
+            }
+          } catch (err) {
+            console.log("Failed to delete item", err);
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>SQLite Example</Text>
@@ -138,19 +246,44 @@ export default function App() {
       {/* 
         Save Button
         
-        Triggers the saveItem function which validates and saves to database.
+        Triggers the saveOrUpdate function which validates and saves to database.
       */}
-      <Button title="Save Item" onPress={saveItem} />
+      <Button
+        title={editingId === null ? "Save Item" : "Update Item"}
+        onPress={saveOrUpdate}
+      />
       <FlatList
         style={styles.list}
         data={items}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.item}>
-            <Text>{item.name}</Text>
-            <Text>{item.quantity}</Text>
-          </View>
+        ItemSeparatorComponent={() => (
+          <View
+            style={{
+              height: 1,
+              backgroundColor: "#eee",
+              marginLeft: 14,
+              marginRight: 14,
+            }}
+          />
         )}
+        renderItem={({ item }) => (
+          <ItemRow
+            name={item.name}
+            quantity={item.quantity}
+            onEdit={() => startEdit(item)}
+            onDelete={() => confirmDelete(item.id)}
+          />
+        )}
+        ListEmptyComponent={
+          <Text style={{ textAlign: "center", marginTop: 24, color: "#888" }}>
+            No items yet. Add your first one above.
+          </Text>
+        }
+        contentContainerStyle={
+          items.length === 0
+            ? { flexGrow: 1, justifyContent: "center" }
+            : undefined
+        }
       />
     </View>
   );
