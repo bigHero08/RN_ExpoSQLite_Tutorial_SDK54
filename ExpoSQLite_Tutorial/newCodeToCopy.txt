@@ -160,7 +160,7 @@ Add functions for saveOrUpdate, startEdit, confirmDelete
 
 
 
-  Inside the FlatList, call the new ItemRow component for renderItem
+  Inside the FlatList, update it so it properly calls the ItemRow component for renderItem
 
        <ItemRow
             name={item.name}
@@ -200,9 +200,3 @@ Add two more props for the delete and
         </TouchableOpacity>
       </View>
 
-
-  Add the extra props inside index.tsx to call these functions
-
-  
-            onEdit={() => startEdit(item)}
-            onDelete={() => confirmDelete(item.id)}
