@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 import { SQLiteProvider } from "expo-sqlite";
-import { initDb } from "./db";
+import { initDb } from "../data/db";
 
 /**
  * Root Layout Component

@@ -18,14 +18,14 @@
  * @param quantity - The updated quantity for the item
  * @returns Promise that resolves when the update operation completes
  */
-export async function updateItem(
+export const updateItem = async (
   db: SQLiteDatabase,
   id: number,
   name: string,
   quantity: number
-): Promise<void> {
-  await db.runAsync('UPDATE items SET name = ?, quantity = ? WHERE id = ?;', [name, quantity, id]);
-}
+): Promise<void> => {
+  await db.runAsync("UPDATE items SET name = ?, quantity = ? WHERE id = ?;", [name, quantity, id]);
+};
 
 /**
  * Delete Item
@@ -42,10 +42,9 @@ export async function updateItem(
  * @param id - The unique identifier of the item to delete
  * @returns Promise that resolves when the delete operation completes
  */
-export async function deleteItem(db: SQLiteDatabase, id: number): Promise<void> {
-  await db.runAsync('DELETE FROM items WHERE id = ?;', [id]);
-}
-
+export const deleteItem = async (db: SQLiteDatabase, id: number): Promise<void> => {
+  await db.runAsync("DELETE FROM items WHERE id = ?;", [id]);
+};
 
 
 
