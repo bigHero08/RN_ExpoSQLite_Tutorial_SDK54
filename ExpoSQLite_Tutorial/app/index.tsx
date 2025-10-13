@@ -245,7 +245,6 @@ export default function App() {
 
       {/* 
         Save Button
-        
         Triggers the saveOrUpdate function which validates and saves to database.
       */}
       <Button
@@ -267,12 +266,7 @@ export default function App() {
           />
         )}
         renderItem={({ item }) => (
-          <ItemRow
-            name={item.name}
-            quantity={item.quantity}
-            onEdit={() => startEdit(item)}
-            onDelete={() => confirmDelete(item.id)}
-          />
+          <ItemRow name={item.name} quantity={item.quantity} />
         )}
         ListEmptyComponent={
           <Text style={{ textAlign: "center", marginTop: 24, color: "#888" }}>
