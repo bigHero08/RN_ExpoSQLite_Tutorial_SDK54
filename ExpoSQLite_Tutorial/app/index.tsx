@@ -1,5 +1,5 @@
 import { useSQLiteContext } from "expo-sqlite";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Button,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { deleteItem, fetchItems, insertItem, updateItem, type Item } from "../data/db";
 import ItemRow from "./components/ItemRow";
+import { Picker } from "@react-native-picker/picker";
 
 export default function App() {
   /**
@@ -31,7 +32,7 @@ export default function App() {
   const [name, setName] = useState<string>("");
   const [quantity, setQuantity] = useState<string>("");
   const [editingId, setEditingId] = useState<number | null>(null);
-
+  const [sortOrder, setSortOrder] = useState<string>("name");
   /**
    * Database State
    *
@@ -39,6 +40,7 @@ export default function App() {
    * When this updates, React re-renders the FlatList to show the new data.
    */
   const [items, setItems] = useState<Item[]>([]);
+  const [selectedSort, setSelectedSort] = useState<string>("nameAZ");
 
   /**
    * Load Items on Mount
@@ -173,6 +175,25 @@ export default function App() {
     setName(item.name);
     setQuantity(String(item.quantity));
   };
+ const handleSort = (order: string) => {
+  let sorted = [...items]; 
+
+  if (order === "nameAZ") {
+    sorted.sort((a, b) => a.name.localeCompare(b.name)); // compares items in list by name by using sort feature
+  } 
+  else if (order === "nameZA") {
+    sorted.sort((a, b) => b.name.localeCompare(a.name));
+  } 
+  else if (order === "quantityLowHigh") {
+    sorted.sort((a, b) => a.quantity - b.quantity); // sorts by subtracting the quantities of items if positive item a comes before item b 
+    // vise versa
+  } 
+  else if (order === "quantityHighLow") {
+    sorted.sort((a, b) => b.quantity - a.quantity);
+  }
+
+  setItems(sorted);
+};
 
   /**
    * Confirm Delete Function
@@ -235,6 +256,23 @@ export default function App() {
         onChangeText={setQuantity}
         keyboardType="numeric"
       />
+      <Picker
+      selectedValue={selectedSort}
+      style={{ width: "100%", height: 50, backgroundColor: "#eee", color: "black"}}
+      onValueChange={(value) => setSelectedSort(value)}
+      >
+          <Picker.Item label="Sort by Name (A-Z)" value="nameAZ"/>
+          <Picker.Item label="Sort by Name (Z-A)" value="nameZA"/>
+          <Picker.Item label="Sort by Quantity (High-Low)" value="quantityHL" />
+          <Picker.Item label="Sort by Quantity (Low-High)" value="quantityLH" />
+      </Picker>
+      <Button
+      title="Sort Items"
+      onPress={() => {
+        setSortOrder(selectedSort);  
+        handleSort(selectedSort);    
+      }}
+    />
 
       {/* 
         Save Button
